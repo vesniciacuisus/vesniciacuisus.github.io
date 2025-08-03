@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Volunteer form handling
+// Volunteer form handling
 const volunteerForm = document.getElementById('volunteer-form');
 if (volunteerForm) {
     volunteerForm.addEventListener('submit', function(e) {
@@ -48,20 +48,14 @@ if (volunteerForm) {
         
         // Colectează datele formularului
         const formData = new FormData(this);
-        const data = {};
         
-        // Transforma FormData în obiect
-        for (let [key, value] of formData.entries()) {
-            data[key] = value;
-        }
-
         // Validare simplă pentru câmpurile obligatorii
         const requiredFields = ['fullName', 'email', 'phone', 'interests', 'motivation', 'gdprConsent'];
         let isValid = true;
         let missingFields = [];
 
         for (let field of requiredFields) {
-            if (!data[field] || (field === 'gdprConsent' && data[field] !== 'on')) {
+            if (!formData.get(field) || (field === 'gdprConsent' && formData.get(field) !== 'on')) {
                 isValid = false;
                 missingFields.push(field);
             }
@@ -74,17 +68,17 @@ if (volunteerForm) {
 
         // Validare email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(data.email)) {
+        if (!emailRegex.test(formData.get('email'))) {
             showMessage('Te rugăm să introduci o adresă de email validă.', 'error');
             return;
         }
 
-        // Trimite formularul folosind fetch la Formspree
-        submitVolunteerApplication(data);
+        // Trimite formularul folosind XMLHttpRequest pentru compatibilitate mai largă
+        submitVolunteerApplication(formData);
     });
 }
 
-function submitVolunteerApplication(data) {
+function submitVolunteerApplication(formData) {
     const form = document.getElementById('volunteer-form');
     const submitButton = form.querySelector('button[type="submit"]');
     
@@ -93,55 +87,42 @@ function submitVolunteerApplication(data) {
     submitButton.disabled = true;
     form.classList.add('form-submitted');
 
-    // Pregătește datele pentru email
-    const emailData = {
-        fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        age: data.age || 'N/A',
-        interests: data.interests,
-        availability: data.availability || 'N/A',
-        experience: data.experience || 'N/A',
-        motivation: data.motivation,
-        gdprConsent: data.gdprConsent === 'on' ? 'Da' : 'Nu'
+    // Trimite cererea către Formspree folosind XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://formspree.io/f/manbdlby', true);
+    xhr.setRequestHeader('Accept', 'application/json');
+    
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                // Afișează mesaj de succes
+                showMessage('Mulțumim! Aplicația ta a fost trimisă cu succes. Te vom contacta în curând.', 'success');
+                
+                // Resetăm formularul
+                form.reset();
+                form.classList.remove('form-submitted');
+                submitButton.textContent = 'Trimite Aplicația';
+                submitButton.disabled = false;
+
+                // Scroll la mesajul de succes
+                const messageElement = document.querySelector('.success-message, .error-message');
+                if (messageElement) {
+                    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                console.error('Eroare la trimiterea formularului:', xhr.responseText);
+                showMessage('A apărut o eroare la trimiterea aplicației. Detalii: ' + xhr.responseText, 'error');
+                
+                // Resetăm starea formularului
+                form.classList.remove('form-submitted');
+                submitButton.textContent = 'Trimite Aplicația';
+                submitButton.disabled = false;
+            }
+        }
     };
 
-    // Trimite cererea către Formspree
-    fetch('https://formspree.io/f/manbdlby', {
-        method: 'POST',
-        body: new URLSearchParams(emailData)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Eroare la trimiterea formularului. Status: ' + response.status);
-        }
-        return response.json(); // Utilizăm răspunsul pentru debugging
-    })
-    .then(() => {
-        // Afișează mesaj de succes
-        showMessage('Mulțumim! Aplicația ta a fost trimisă cu succes. Te vom contacta în curând.', 'success');
-        
-        // Resetăm formularul
-        form.reset();
-        form.classList.remove('form-submitted');
-        submitButton.textContent = 'Trimite Aplicația';
-        submitButton.disabled = false;
-
-        // Scroll la mesajul de succes
-        const messageElement = document.querySelector('.success-message, .error-message');
-        if (messageElement) {
-            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    })
-    .catch((error) => {
-        console.error('Eroare trimitere aplicație:', error);
-        showMessage('A apărut o eroare la trimiterea aplicației. Detalii: ' + error.message, 'error');
-        
-        // Resetăm starea formularului
-        form.classList.remove('form-submitted');
-        submitButton.textContent = 'Trimite Aplicația';
-        submitButton.disabled = false;
-    });
+    // Trimite formularul
+    xhr.send(formData);
 }
 
 function showMessage(message, type) {
@@ -169,6 +150,7 @@ function showMessage(message, type) {
         }, 10000);
     }
 }
+
 
     // Navbar scroll effect
     let lastScrollY = window.scrollY;
